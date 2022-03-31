@@ -1,0 +1,493 @@
+---
+title: "SynComm"
+output:
+  html_document:
+    df_print: paged
+---
+
+```{r message=FALSE, warning=FALSE}
+library(tidyverse)
+library(plyr)
+library(vegan)
+library(writexl)
+library(readr)
+library(ecodist)
+library(fossil)
+library(asbio)
+library(gridExtra)
+library(corrplot)
+library(Hmisc)
+```
+
+```{r}
+# Let's go ahead and bring in our data. Here, I separated the YTSS mixed cultures just to make the data smaller and easier to manage. The same process can be used for the coumarate mix cultures.
+
+# YTSS Mix Cultures
+syncom_YTSS_data <- read.csv("C:/Users/jillw/Desktop/Buchan/syncom_YTSS_mix.csv")
+
+# Coumarate Mix Cultures
+
+syncom_coum_data <- read.csv("C:/Users/jillw/Desktop/Buchan/syncom_coum_mix.csv")
+
+# So I copied the following (mostly) from Lauren's github when she made her community composition area plots (https://github.com/lnmquigley/roseo_priming_2018/blob/master/community%20data/110317_commcomp.R).
+
+# First, we are taking the relative abundance of each strain for each rep for each mix and putting it in its own column.
+
+
+
+# YTSS Mix Cultures
+syncom_YTSS_rela <- mutate(syncom_YTSS_data, Relabund = (count/total))
+
+# Coumarate Mix Cultures
+
+syncom_coum_rela <- mutate(syncom_coum_data, Relabund = (count/total))
+
+# syncom_YTSS_count_ave <- ddply(syncom_YTSS_data, c("ï..mix", "time_point", "strain"), summarise, ave_rela=(mean(log(count))/mean(log(total)))
+
+filtered_syncom_coum_rela <- syncom_coum_rela %>% filter(bio_rep %in% c("1A", "1B", "1C", "3A", "3B", "3C"))
+
+
+# Once we have the relative abundance of each strain in each rep in each mix, we can group the data frame by mix, time_point, and strain. This allows us to get an aggregated mean value for all the reps, so there is one value for each strain in each mix. 
+
+# For the coumarate mixed cultures we need to remove biorep 2 because it does not have EE-36 in it.
+
+
+# YTSS Mix Cultures
+
+syncom_YTSS_relabund_ave <- ddply(syncom_YTSS_rela, c("ï..mix", "time_point", "strain"), summarise, Relabundm=mean(Relabund, na.rm = TRUE))
+
+# Coumarate Mix Cultures
+
+syncom_coum_relabund_ave <- ddply(filtered_syncom_coum_rela, c("ï..mix", "time_point", "strain"), summarise, Relabundm=mean(Relabund, na.rm = TRUE))
+
+
+```
+
+```{r}
+# Here is the tricky part: making the plot. Again, I used mostly Lauren's code with a few changes. Instead of facet_grid, we are using facet_wrap just because we are only making a grid based on 1 variable, Mix. The colors under scale_fill_manual do need to be changed from each strain, but that should be pretty straightforward.
+mix_names <- list(
+  'A' = "WT",
+  'B' = "pgaR-", 
+  'C' = "phaR-",
+  'D' = "phaI-",
+  'E' = "igiD-"
+)
+
+mix_labeller <- function(variable,value){
+  return(mix_names[value])
+}
+
+syncom_YTSS_relabund_ave_plot <- ggplot(syncom_YTSS_relabund_ave, aes(time_point, Relabundm, fill=strain)) + 
+  geom_area(position="stack") +
+  scale_fill_manual(values=c("#75417E", "#E6C533", "#FF8200","#ABC178", "#006C93")) +
+  scale_y_continuous(labels=scales::percent) +
+  facet_grid(. ~ ï..mix, labeller= mix_labeller) +
+  xlab("Time (days)") +
+  ylab("Community Composition (Relative Abundance)") +
+  ggtitle("Complex Medium")+
+  theme(plot.title = element_text(hjust = 0.5))+
+  theme(panel.grid.major = element_line(colour = "white"),
+        panel.grid.minor = element_blank(),
+        panel.background = element_rect(fill = "white"),
+        legend.key = element_rect(fill = "white"))
+ggsave("YTSS.png")
+ggsave("YTSS.pdf")
+print(syncom_YTSS_relabund_ave_plot)
+
+
+syncom_coum_relabund_ave_plot <- ggplot(syncom_coum_relabund_ave, aes(time_point, Relabundm, fill=strain)) + 
+  geom_area(position="stack") +
+  scale_fill_manual(values=c("#75417E", "#E6C533", "#FF8200","#ABC178", "#006C93")) +
+  scale_y_continuous(labels=scales::percent) +
+  facet_grid(. ~ ï..mix, labeller= mix_labeller) +
+  xlab("Time (days)") +
+  ylab("Community Composition (Relative Abundance)") +
+  ggtitle("Defined Medium with Coumarate")+
+  theme(plot.title = element_text(hjust = 0.5))+
+  theme(panel.grid.major = element_line(colour = "white"),
+        panel.grid.minor = element_blank(),
+        panel.background = element_rect(fill = "white"),
+        legend.key = element_rect(fill = "white"))
+ggsave("filtered_coum.png")
+ggsave("filtered_coum.pdf")
+print(syncom_coum_relabund_ave_plot)
+
+combined_plot <- ggplot(syncom_YTSS_relabund_ave, aes(time_point, Relabundm, fill=strain)) + 
+  geom_area(position="stack") +
+  scale_fill_manual(values=c("#75417E", "#E6C533", "#FF8200","#ABC178", "#006C93")) +
+  scale_y_continuous(labels=scales::percent) +
+  facet_grid(. ~ ï..mix, labeller= mix_labeller) +
+  xlab("Time (days)") +
+  ylab("Community Composition (Relative Abundance)") +
+  ggtitle("Complex Medium")+
+  theme(plot.title = element_text(hjust = 0.5))+
+  theme(panel.grid.major = element_line(colour = "white"),
+        panel.grid.minor = element_blank(),
+        panel.background = element_rect(fill = "white"),
+        legend.key = element_rect(fill = "white"))
+ggsave("YTSS.png")
+ggsave("YTSS.pdf")
+print(syncom_YTSS_relabund_ave_plot)
+
+# #75417E = Purple
+# #FF8200 = Orange
+# #E6C533 = Yellow
+# #ABC178 = Green
+# #006C93 = Blue
+```
+
+```{r}
+# Now we will do a Bray-Curtis Similarity plot to see the community differences between the coumarate and the YTSS community experiments. 
+
+# Need to get mean counts to make a new csv file for stats, so here is me using a short cut in R to calculate those means.
+
+syncom_coum_count_ave <- ddply(filtered_syncom_coum_rela, c("ï..mix", "time_point", "strain"), summarise, countm=mean(count, na.rm = TRUE))
+
+# write_xlsx(syncom_coum_count_ave, "C:/Users/jillw/Desktop/Buchan/syncom_coum_count_ave.xlsx")
+
+syncom_YTSS_count_ave <- ddply(syncom_YTSS_rela, c("ï..mix", "time_point", "strain"), summarise, countm=mean(count, na.rm = TRUE))
+
+# write_xlsx(syncom_YTSS_count_ave, "C:/Users/jillw/Desktop/Buchan/syncom_YTSS_count_ave.xlsx")
+
+syncom_both_carbon <- t(read.csv("C:/Users/jillw/Desktop/Buchan/stat_input_both_carbon.csv", row.names =1, check.names = FALSE)) # all time points for both carbon sources
+
+syncom_both_carbon_0 <- t(read.csv("C:/Users/jillw/Desktop/Buchan/stat_input_0.csv", row.names =1, check.names = FALSE)) # time point 0 for both carbon sources
+
+syncom_both_carbon_1 <- t(read.csv("C:/Users/jillw/Desktop/Buchan/stat_input_1.csv", row.names =1, check.names = FALSE)) # time point 1 for both carbon sources
+
+syncom_both_carbon_2 <- t(read.csv("C:/Users/jillw/Desktop/Buchan/stat_input_2.csv", row.names =1, check.names = FALSE)) # time point 2 for both carbon sources
+
+syncom_both_carbon_3 <- t(read.csv("C:/Users/jillw/Desktop/Buchan/stat_input_3.csv", row.names =1, check.names = FALSE)) # time point 3 for both carbon sources
+
+
+
+both_carbon_metadata <- read.csv("C:/Users/jillw/Desktop/Buchan/stat_syncom_metadata.csv", row.names=1, check.names = FALSE)
+head(both_carbon_metadata)
+
+
+beta <- bcdist(syncom_both_carbon) # all time points
+
+beta_0 <- bcdist(syncom_both_carbon_0) # time point 0
+
+beta_1 <- bcdist(syncom_both_carbon_1) # time point 1
+
+beta_2 <- bcdist(syncom_both_carbon_2) # time point 2
+
+beta_3 <- bcdist(syncom_both_carbon_3) # time point 3
+
+beta_pcoa <- cmdscale(beta, k=2, eig = T)
+
+beta_plotting <- as.data.frame(beta_pcoa$points)
+
+colnames(beta_plotting) <- c("axis_1", "axis_2")
+
+beta_plotting$mix <- rownames(beta_plotting)
+
+beta_pcoa$eig[1]/(sum(beta_pcoa$eig))
+
+beta_pcoa$eig[2]/(sum(beta_pcoa$eig))
+
+# Bray Curtis PCoA plots
+
+beta_pcoa_plot <- ggplot(beta_plotting, aes(x = axis_1, y = axis_2, colour = mix)) +
+geom_point(aes(shape=mix, size=mix, color=mix, stroke =1.5))+
+ scale_shape_manual(values = c(1, 16, 9, 2, 17, 18, 15, 7, 6, 1, 16, 9, 2, 17, 18, 15, 7, 6, 1, 16, 9, 2, 17, 18, 15, 7, 6, 1, 16, 9, 2, 17, 18, 15, 7, 6, 1, 16, 9, 2, 17, 18, 15, 7, 6))+
+ scale_size_manual(values=c(4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4))+ 
+ scale_color_manual(values=c('#CC79A7','#CC79A7','#CC79A7','#CC79A7','#CC79A7','#CC79A7','#CC79A7','#CC79A7','#CC79A7','#D55E00','#D55E00','#D55E00','#D55E00','#D55E00','#D55E00','#D55E00','#D55E00','#D55E00','#0072B2', '#0072B2','#0072B2', '#0072B2','#0072B2', '#0072B2','#0072B2', '#0072B2','#0072B2', '#F0E442', '#F0E442','#F0E442', '#F0E442','#F0E442', '#F0E442','#F0E442', '#F0E442','#F0E442','#009E73', '#009E73','#009E73', '#009E73','#009E73', '#009E73','#009E73', '#009E73','#009E73'))+
+theme_bw() + 
+ xlab("PCoA 1 (40.4%)") +
+ ylab("PCoA 2 (19.8%)") +
+ annotate(geom = 'text', label = 'Beta Diversity', x = Inf, y = -Inf, hjust = 1.15, vjust = -1)
+print(beta_pcoa_plot)
+ggsave("beta_pcoa_plot.png")
+
+
+beta_pcoa_0 <- cmdscale(beta_0, k=2, eig = T)
+
+beta_plotting_0 <- as.data.frame(beta_pcoa_0$points)
+
+colnames(beta_plotting_0) <- c("axis_1", "axis_2")
+
+beta_plotting_0$mix <- rownames(beta_plotting_0)
+
+beta_pcoa_0$eig[1]/(sum(beta_pcoa_0$eig))
+
+beta_pcoa_0$eig[2]/(sum(beta_pcoa_0$eig))
+
+beta_pcoa_plot_0 <- ggplot(beta_plotting_0, aes(x = axis_1, y = axis_2, colour = mix)) +
+  geom_point(aes(shape=mix, size=mix, color=mix))+
+scale_shape_manual(values = c(17, 16, 17, 16, 17, 16, 17, 16, 17, 16))+
+  scale_size_manual(values=c(4, 4, 4, 4, 4, 4, 4, 4, 4, 4))+
+  scale_color_manual(values=c('#0096FF','#0096FF', '#40B5AD','#40B5AD', '#6a0dad', '#6a0dad', '#C71585', '#C71585', '#FFC0CB', '#FFC0CB' ))+
+  theme_bw() + 
+  xlab("PCoA 1 (82.0%)") +
+  ylab("PCoA 2 (21.5%)") +
+  annotate(geom = 'text', label = 'Bray Curtis Day 0', x = Inf, y = -Inf, hjust = 1.15, vjust = -1)
+print(beta_pcoa_plot_0)
+ggsave("beta_pcoa_plot_0.png")
+
+beta_pcoa_1 <- cmdscale(beta_1, k=2, eig = T)
+
+beta_plotting_1 <- as.data.frame(beta_pcoa_1$points)
+
+colnames(beta_plotting_1) <- c("axis_1", "axis_2")
+
+beta_plotting_1$mix <- rownames(beta_plotting_1)
+
+beta_pcoa_1$eig[1]/(sum(beta_pcoa_1$eig))
+
+beta_pcoa_1$eig[2]/(sum(beta_pcoa_1$eig))
+
+beta_pcoa_plot_1 <- ggplot(beta_plotting_1, aes(x = axis_1, y = axis_2, colour = mix)) +
+  geom_point(aes(shape=mix, size=mix, color=mix))+
+scale_shape_manual(values = c(17, 16, 17, 16, 17, 16, 17, 16, 17, 16))+
+  scale_size_manual(values=c(4, 4, 4, 4, 4, 4, 4, 4, 4, 4))+
+  scale_color_manual(values=c('#0096FF','#0096FF', '#40B5AD','#40B5AD', '#6a0dad', '#6a0dad', '#C71585', '#C71585', '#FFC0CB', '#FFC0CB' ))+
+  theme_bw() + 
+  xlab("PCoA 1 (95.2%)") +
+  ylab("PCoA 2 (0.1%)") +
+  annotate(geom = 'text', label = 'Bray Curtis Day 1', x = Inf, y = -Inf, hjust = 1.15, vjust = -1)
+print(beta_pcoa_plot_1)
+ggsave("beta_pcoa_plot_1.png")
+
+beta_pcoa_2 <- cmdscale(beta_2, k=2, eig = T)
+
+beta_plotting_2 <- as.data.frame(beta_pcoa_2$points)
+
+colnames(beta_plotting_2) <- c("axis_1", "axis_2")
+
+beta_plotting_2$mix <- rownames(beta_plotting_2)
+
+beta_pcoa_2$eig[1]/(sum(beta_pcoa_2$eig))
+
+beta_pcoa_2$eig[2]/(sum(beta_pcoa_2$eig))
+
+beta_pcoa_plot_2 <- ggplot(beta_plotting_2, aes(x = axis_1, y = axis_2, colour = mix)) +
+  geom_point(aes(shape=mix, size=mix, color=mix))+
+scale_shape_manual(values = c(16, 17, 16, 17, 16, 17, 16, 17, 16, 17))+
+  scale_size_manual(values=c(4, 4, 4, 4, 4, 4, 4, 4, 4, 4))+
+  scale_color_manual(values=c('#0096FF','#0096FF', '#40B5AD','#40B5AD', '#6a0dad', '#6a0dad', '#C71585', '#C71585', '#FFC0CB', '#FFC0CB' ))+
+  theme_bw() + 
+  xlab("PCoA 1 (85.3%)") +
+  ylab("PCoA 2 (15.9%)") +
+  annotate(geom = 'text', label = 'Bray Curtis Day 2/9', x = Inf, y = -Inf, hjust = 1.15, vjust = -1)
+print(beta_pcoa_plot_2)
+ggsave("beta_pcoa_plot_2.png")
+
+
+beta_pcoa_3 <- cmdscale(beta_3, k=2, eig = T)
+
+beta_plotting_3 <- as.data.frame(beta_pcoa_3$points)
+
+colnames(beta_plotting_3) <- c("axis_1", "axis_2")
+
+beta_plotting_3$mix <- rownames(beta_plotting_3)
+
+beta_pcoa_3$eig[1]/(sum(beta_pcoa_3$eig))
+
+beta_pcoa_3$eig[2]/(sum(beta_pcoa_3$eig))
+
+beta_pcoa_plot_3 <- ggplot(beta_plotting_3, aes(x = axis_1, y = axis_2, colour = mix)) +
+  geom_point(aes(shape=mix, size=mix, color=mix))+
+scale_shape_manual(values = c(17, 16, 17, 16, 17, 16, 17, 16, 17, 16))+
+  scale_size_manual(values=c(4, 4, 4, 4, 4, 4, 4, 4, 4, 4))+
+  scale_color_manual(values=c('#0096FF','#0096FF', '#40B5AD','#40B5AD', '#6a0dad', '#6a0dad', '#C71585', '#C71585', '#FFC0CB', '#FFC0CB' ))+
+  theme_bw() + 
+  xlab("PCoA 1 (55.0%)") +
+  ylab("PCoA 2 (39.1%)") +
+  theme(legend.title = element_blank())+
+  annotate(geom = 'text', label = 'Bray Curtis Day 3/14', x = Inf, y = -Inf, hjust = 1.15, vjust = -1)
+print(beta_pcoa_plot_3)
+ggsave("beta_pcoa_plot_3.png", width=5, height =7)
+
+
+# groups_for_betadisper <- factor(c(rep("coum",5),rep("YTSS",5)))
+
+# betadisper(beta_0,groups_for_betadisper, plot)
+
+# beta_0_plot <-metaMDS(beta_0)
+
+# PERMANOVA of Bray Curtis values, carbon, time point, and synthetic community mix
+
+PERMANOVA <- adonis(beta~carbon*time_point*mix, both_carbon_metadata, permutations = 1500)
+
+print(PERMANOVA)
+
+
+both_carbon_metadata_0 <- both_carbon_metadata %>% filter( time_point %in% c("0"))
+
+
+PERMANOVA_0 <- adonis(beta_0~carbon*mix, both_carbon_metadata_0, permutations = 1500)
+ print(PERMANOVA_0)
+ 
+both_carbon_metadata_1 <- both_carbon_metadata %>% filter( time_point %in% c("1"))
+
+PERMANOVA_1 <- adonis(beta_1~carbon*mix, both_carbon_metadata_1, permutations = 1500)
+print(PERMANOVA_1)
+
+both_carbon_metadata_2 <- both_carbon_metadata %>% filter( time_point %in% c("2", "9"))
+
+PERMANOVA_2 <- adonis(beta_2~carbon*mix, both_carbon_metadata_2, permutations = 1500)
+print(PERMANOVA_2)
+
+both_carbon_metadata_3 <- both_carbon_metadata %>% filter( time_point %in% c("3", "14"))
+
+PERMANOVA_3 <- adonis(beta_3~carbon*mix, both_carbon_metadata_3, permutations = 1500)
+print(PERMANOVA_3)
+
+
+```
+
+```{r}
+# Shannon's Alpha Diversity
+
+shannon <- diversity(syncom_both_carbon, index= "shannon")
+print(shannon)
+
+shannon_df <- data.frame(shannon)
+
+shannon_values <- c(1.4088623, 1.3691678, 1.3688002, 1.4341322, 1.4567323, 0.6602605, 0.4221202, 0.6667440, 0.7618416, 0.5762696, 0.8926014, 0.8959285, 0.8829026, 0.9453744, 0.5727110, 0.6763380, 0.8912697, 0.7910117, 0.6928640, 0.8143313, 0.7002675, 0.7234503, 0.8447919, 0.5882828, 0.4783367, 1.3512988, 1.4189282, 1.4652634, 1.4575261, 1.4904548, 1.0585215, 1.0570632, 0.5036769, 0.5237450, 0.3860378, 0.9398167, 1.0449495, 0.5696483, 1.0724731, 0.7439646, 0.9487026, 0.5091373, 0.4551120, 1.1233223, 0.8731107)
+
+
+meta_data_shannon <- read.csv("C:/Users/jillw/Desktop/Buchan/stat_syncom_metadata_for_shannon.csv", row.names=1, check.names = FALSE)
+
+meta_data_shannon$shannon <- shannon_values
+
+shannon_plot <- ggplot(meta_data_shannon, aes(x =time_point, y=shannon ))+
+  geom_point(aes(shape=carbon, color=mix, size = 0.8))+
+  scale_color_manual(values=c('#CC79A7', '#D55E00',  '#0072B2', '#F0E442', '#009E73' ))+
+  xlab("Day") + 
+  ylab("Shannon's Diversity Index")+
+   scale_x_continuous(breaks = c(0,1,2,3, 4, 9, 14))+
+  theme_bw()
+print(shannon_plot)
+ggsave("shannon_plot.png")
+
+
+```
+```{r}
+# syncom_YTSS_data$logcount = log(syncom_YTSS_data$count)
+
+# syncom_YTSS_data$logtotal = log(syncom_YTSS_data$total)
+
+# syncom_coum_data$logcount = log(syncom_coum_data$count)
+
+# syncom_coum_data$logtotal = log(syncom_coum_data$total)
+
+# syncom_YTSS_count_ave_log <- ddply(syncom_YTSS_data, c("ï..mix", "time_point", "strain"), summarise, ave_rela=(mean(log(count))/mean(log(total))))
+
+# filtered_syncom_coum_rela <- syncom_coum_rela %>% filter(bio_rep %in% c("1A", "1B", "1C", "3A", "3B", "3C"))
+
+# syncom_YTSS_log_count <- ggplot(syncom_YTSS_data, aes(time_point, logcount, fill=strain)) + 
+  # geom_area(position="stack") +
+  # scale_fill_manual(values=c("#75417E", "#E6C533", "#FF8200","#ABC178", "#006C93")) +
+  # scale_y_continuous(labels=scales::percent) +
+  # facet_wrap(ï..mix ~ ., labeller= mix_labeller) +
+  # xlab("Time (days)") +
+  # ylab("Community Composition (Relative Abundance)") +
+  # ggtitle("YTSS")+
+  # theme(plot.title = element_text(hjust = 0.5))+
+  # theme(panel.grid.major = element_line(colour = "white"),
+       # panel.grid.minor = element_blank(),
+       # panel.background = element_rect(fill = "white"),
+        #legend.key = element_rect(fill = "white"))
+# ggsave("YTSS_log.png", width=4.75, height=6)
+# ggsave("YTSS_log.pdf")
+# print(syncom_YTSS_log_count)
+
+
+```
+
+```{r}
+# Seeding Density Stacked Bar Charts
+
+# YTSS_seeding_density <- syncom_YTSS_relabund_ave %>% filter(time_point %in% c("0"))
+# coum_seeding_density <- syncom_coum_relabund_ave %>% filter(time_point %in% c("0"))
+
+# YTSS_seeding_density_log <- mutate(YTSS_seeding_density, log = log(Relabundm))
+
+syncom_YTSS_data_ave <- ddply(syncom_YTSS_data, c("ï..mix", "time_point", "strain"), summarise, average=mean(count, na.rm = TRUE))
+YTSS_seeding_density <- syncom_YTSS_data_ave %>% filter(time_point %in% c("0"))
+YTSS_seeding_density_log <- mutate(YTSS_seeding_density, log = log(average))
+
+YTSS_seeding_density_plot <- ggplot(YTSS_seeding_density_log, aes(fill=strain, y=log, x=ï..mix)) + 
+    geom_bar(position="fill", stat="identity")+
+  scale_fill_manual(values=c("#75417E", "#E6C533", "#FF8200","#ABC178", "#006C93")) +
+  #scale_x_discrete(name ="Y4I variant", limits=c("WT","pgaR-","phaR-","phaI-", "igiD-"))+
+  scale_x_discrete(labels=c("A" = "WT", "B" = "pgaR-",
+                              "C" = "phaR-", "D"= "phaI-", "E"= "igiD-"))+
+  xlab("Y4I Variant")+
+  ylab("Seeding Density")+
+  ggtitle("Complex Media")+
+  theme(plot.title = element_text(hjust = 0.5))+
+  theme(panel.grid.major = element_line(colour = "white"),
+        panel.grid.minor = element_blank(),
+        panel.background = element_rect(fill = "white"),
+        legend.key = element_rect(fill = "white"))
+print(YTSS_seeding_density_plot)
+ggsave("YTSS_seeding_desnity.png")
+
+filtered_syncom_coum <- syncom_coum_data %>% filter(bio_rep %in% c("1A", "1B", "1C", "3A", "3B", "3C"))
+syncom_coum_data_ave <- ddply(filtered_syncom_coum, c("ï..mix", "time_point", "strain"), summarise, average=mean(count, na.rm = TRUE))
+coum_seeding_density <- syncom_coum_data_ave %>% filter(time_point %in% c("0"))
+coum_seeding_density_log <- mutate(coum_seeding_density, log = log(average))
+
+coum_seeding_density_plot <- ggplot(YTSS_seeding_density_log, aes(fill=strain, y=log, x=ï..mix)) + 
+    geom_bar(position="fill", stat="identity")+
+  scale_fill_manual(values=c("#75417E", "#E6C533", "#FF8200","#ABC178", "#006C93")) +
+ scale_x_discrete(labels=c("A" = "WT", "B" = "pgaR-",
+                              "C" = "phaR-", "D"= "phaI-", "E"= "igiD-"))+
+  xlab("Y4I Variant")+
+  ylab("Seeding Density")+
+  ggtitle("Defined Media")+
+  theme(plot.title = element_text(hjust = 0.5))+
+  theme(panel.grid.major = element_line(colour = "white"),
+        panel.grid.minor = element_blank(),
+        panel.background = element_rect(fill = "white"),
+        legend.key = element_rect(fill = "white"))
+print(coum_seeding_density_plot)
+ggsave("coum_seeding_density.png")
+
+both_seeding_density <- grid.arrange(YTSS_seeding_density_plot, coum_seeding_density_plot)
+print(both_seeding_density)
+
+
+# 'A' = "WT",
+#  'B' = "pgaR-", 
+#  'C' = "phaR-",
+#  'D' = "phaI-",
+#  'E' = "igiD-"
+
+```
+```{r}
+# Co-Occurrence Analysis of Average Abundances across time points
+
+YTSS_co <- read.csv("YTSS_Co_Occurence.csv")
+rownames(YTSS_co) <- c("0", "1", "2", "3")
+YTSS_co_rows <- YTSS_co %>% select("A_E37", "A_EE36", "A_ISM", "A_SE45", "A_Y4I", "B_E37", "B_EE36", "B_ISM", "B_SE45", "B_Y4I", "C_E37", "C_EE36", "C_ISM", "C_SE45", "C_Y4I", "D_E37", "D_EE36", "D_ISM", "D_SE45", "D_Y4I", "E_E37", "E_EE36", "E_ISM", "E_SE45", "E_Y4I")
+YTSS_cor <- cor(YTSS_co_rows)
+YTSS_cor_plot <- corrplot(YTSS_cor)
+
+print(YTSS_cor_plot)
+
+# YTSS_sig <- rcorr(as.matrix(YTSS_co_rows))
+
+# YTSS_sig
+
+coum_co <- read.csv("coum_co_occurence.csv")
+rownames(coum_co) <- c("0", "1", "4", "9","14")
+coum_co_rows <- coum_co %>% select("A_E37", "A_EE36", "A_ISM", "A_SE45", "A_Y4I", "B_E37", "B_EE36", "B_ISM", "B_SE45", "B_Y4I", "C_E37", "C_EE36", "C_ISM", "C_SE45", "C_Y4I", "D_E37", "D_EE36", "D_ISM", "D_SE45", "D_Y4I", "E_E37", "E_EE36", "E_ISM", "E_SE45", "E_Y4I")
+coum_cor <- cor(coum_co_rows)
+coum_cor_plot <- corrplot(coum_cor)
+
+print(coum_cor_plot)
+
+coum_sig<- rcorr(as.matrix(coum_co_rows))
+
+coum_sig
+
+
+```
+
+
+
